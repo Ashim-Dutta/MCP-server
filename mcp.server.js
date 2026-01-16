@@ -12,10 +12,10 @@ const server = new McpServer({
 server.registerTool("addTwoNumbers", {
     title: "Add Two Numbers",
     description: "Adds two numbers togather",
-    inputSchema: z.object({
+    inputSchema: {
         a: z.number().describe("The first number"),
         b:z.number().describe("The second number")
-    })
+    }
 },
     
     async ({ a, b }) => {
