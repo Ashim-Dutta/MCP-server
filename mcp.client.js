@@ -1,23 +1,12 @@
+import {config} from "dotenv"
 import { Client } from "@modelcontextprotocol/sdk/client";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import {GoogleGenAI,Type} from "@google/genai"
 
 
-const weatherFunctionDeclaration = {
-    name: "get_current_temparature",
-    description: "Gets the current temparature for a given location",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            location: {
-                type: Type.STRING,
-                description: "The location to get the current temparature for"
-            }
-        },
-        required: ["location"]
-    }
-}
+config()
 
+const tools = []
 
 const ai = new GoogleGenAI({
     api_key: process.env.GOOGLE_API_KEY || ""
@@ -36,7 +25,37 @@ const client = new Client({
 
 await client.connect(transport); 
 
-client.listTools().then(response => {
-    console.log(response)
-    console.log(weatherFunctionDeclaration)
+client.listTools().then(async response => {
+    response.tools.forEach(tool => {
+        tools.push({
+            name: tool.name,
+            description: tool.description,
+            parameters: {
+                type: "OBJECT",
+                properties: tool.inputSchema.properties,
+                required: tool.inputSchema.required || []
+            }
+        })
+    })
+
+    const aiResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: "Add 2 and 3",
+        config: {
+            tools: [{
+                functionDeclarations: tools
+            }]
+        }
+    
+    })
+
+    aiResponse.functionCalls.forEach(async call => {
+        const toolResponse = await client.callTool({
+            name: call.name,
+            arguments: call.args
+        })
+
+        console.log(toolResponse)
+     })
+
 })
